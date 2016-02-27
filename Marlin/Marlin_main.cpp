@@ -173,6 +173,7 @@
 // M350 - Set microstepping mode.
 // M351 - Toggle MS1 MS2 pins directly.
 // M928 - Start SD logging (M928 filename.g) - ended by M29
+// M998 - Toggle CR/LF mode.
 // M999 - Restart after being stopped by error
 
 //Stepper Movement Variables
@@ -188,6 +189,7 @@
 #ifdef SDSUPPORT
 CardReader card;
 #endif
+int use_crlf = 0;
 float homing_feedrate[] = HOMING_FEEDRATE;
 bool axis_relative_modes[] = AXIS_RELATIVE_MODES;
 int feedmultiply=100; //100->1 200->2
@@ -2911,6 +2913,9 @@ void process_commands()
       #endif
     }
     break;
+    case 998:
+      use_crlf = !use_crlf;
+      break;
     case 999: // M999: Restart after being stopped
       Stopped = false;
       lcd_reset_alert_level();

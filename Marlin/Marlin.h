@@ -59,10 +59,14 @@
   #define MYSERIAL MSerial
 #endif
 
+const char newline_crlf[] = "\r\n";
+const char newline_lf[] = "\n";
+extern int use_crlf;
+
 #define SERIAL_PROTOCOL(x) (MYSERIAL.print(x))
 #define SERIAL_PROTOCOL_F(x,y) (MYSERIAL.print(x,y))
 #define SERIAL_PROTOCOLPGM(x) (serialprintPGM(PSTR(x)))
-#define SERIAL_PROTOCOLLN(x) (MYSERIAL.print(x),MYSERIAL.write('\n'))
+#define SERIAL_PROTOCOLLN(x) (MYSERIAL.print(x),(use_crlf ? MYSERIAL.write('\r') : 0),MYSERIAL.write('\n'))
 #define SERIAL_PROTOCOLLNPGM(x) (serialprintPGM(PSTR(x)),MYSERIAL.write('\n'))
 
 
