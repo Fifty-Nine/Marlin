@@ -71,7 +71,7 @@
 // 21 = Elefu Ra Board (v3)
 
 #ifndef MOTHERBOARD
-#define MOTHERBOARD 84
+#error "MOTHERBOARD not defined."
 #endif
 
 // Define this to set a custom name for your generic Mendel,
