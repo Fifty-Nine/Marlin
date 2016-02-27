@@ -645,6 +645,7 @@ static float analog2temp(int raw, uint8_t e) {
 // Derived from RepRap FiveD extruder::getTemperature()
 // For bed temperature measurement.
 static float analog2tempBed(int raw) {
+#if 0
   #ifdef BED_USES_THERMISTOR
     float celsius = 0;
     byte i;
@@ -670,6 +671,8 @@ static float analog2tempBed(int raw) {
   #else
     return 0;
   #endif
+#endif
+    return (-0.13736 * raw / OVERSAMPLENR) + 118.41;
 }
 
 /* Called to get the raw values into the the actual temperatures. The raw values are created in interrupt context,
