@@ -31,6 +31,9 @@
 #
 #  4. Type "make" and press enter to compile/verify your program.
 #
+#  5. Type "make upload", reset your Arduino board, and press enter to
+#     upload your program to the Arduino board.
+#
 # Note that all settings are set with ?=, this means you can override them
 # from the commandline with "make HARDWARE_MOTHERBOARD=71" for example
 
@@ -335,6 +338,9 @@ eep: $(BUILD_DIR)/$(TARGET).eep
 lss: $(BUILD_DIR)/$(TARGET).lss
 sym: $(BUILD_DIR)/$(TARGET).sym
 
+upload: $(BUILD_DIR)/$(TARGET).hex
+	dfu-programmer at90usb1286 erase
+	dfu-programmer at90usb1286 flash $<
 
 	# Display size of file.
 HEXSIZE = $(SIZE) --target=$(FORMAT) $(BUILD_DIR)/$(TARGET).hex
