@@ -31,34 +31,16 @@
 #
 #  4. Type "make" and press enter to compile/verify your program.
 #
-#  5. Type "make upload", reset your Arduino board, and press enter to
-#     upload your program to the Arduino board.
-#
 # Note that all settings are set with ?=, this means you can override them
 # from the commandline with "make HARDWARE_MOTHERBOARD=71" for example
 
 # This defined the board you are compiling for (see Configuration.h for the options)
-HARDWARE_MOTHERBOARD ?= 81
+HARDWARE_MOTHERBOARD = 81
 
-# Arduino source install directory, and version number
-# On MacOS this will be something like /Applications/Arduino.app/Contents/Resources/Java/
-# On Windows it might be something like C:\Arduino
-ARDUINO_INSTALL_DIR  ?= /Applications/Arduino.app/Contents/Resources/Java/
-ARDUINO_VERSION      ?= 105
-
-# You can optionally set a path to the avr-gcc tools. Requires a trailing slash. (ex: /usr/local/avr-gcc/bin)
-AVR_TOOLS_PATH ?= /Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/
-
-#Programmer configuration
-UPLOAD_RATE        ?= 115200
-AVRDUDE_PROGRAMMER ?= arduino
-UPLOAD_PORT        ?= /dev/arduino
+include config.mk
 
 #Directory used to build files in, contains all the build files, from object files to the final hex file.
-BUILD_DIR          ?= applet
-
-# This defines whether Liquid_TWI2 support will be built
-LIQUID_TWI2 ?= 0
+BUILD_DIR          = applet
 
 ############################################################################
 # Below here nothing should be changed...
@@ -205,19 +187,9 @@ VPATH += $(HARDWARE_SRC)
 ifeq ($(HARDWARE_VARIANT), arduino)
 VPATH += $(ARDUINO_INSTALL_DIR)/libraries/LiquidCrystal
 VPATH += $(ARDUINO_INSTALL_DIR)/libraries/SPI
-ifeq ($(LIQUID_TWI2), 1)
-VPATH += $(ARDUINO_INSTALL_DIR)/libraries/Wire
-VPATH += $(ARDUINO_INSTALL_DIR)/libraries/Wire/utility
-VPATH += $(ARDUINO_INSTALL_DIR)/libraries/LiquidTWI2
-endif
 else
 VPATH += $(HARDWARE_DIR)/libraries/LiquidCrystal
 VPATH += $(HARDWARE_DIR)/libraries/SPI
-ifeq ($(LIQUID_TWI2), 1)
-VPATH += $(HARDWARE_DIR)/libraries/Wire
-VPATH += $(HARDWARE_DIR)/libraries/Wire/utility
-VPATH += $(HARDWARE_DIR)/libraries/LiquidTWI2
-endif
 endif
 ifeq ($(HARDWARE_VARIANT), arduino)
 HARDWARE_SUB_VARIANT ?= mega
@@ -227,7 +199,9 @@ HARDWARE_SUB_VARIANT ?= standard
 VPATH += $(HARDWARE_DIR)/$(HARDWARE_VARIANT)/variants/$(HARDWARE_SUB_VARIANT)
 endif
 ifeq ($(MCU), at90usb1286)
-VPATH += $(ARDUINO_INSTALL_DIR)/hardware/teensy/cores/at90usb1286/
+VPATH += $(ARDUINO_INSTALL_DIR)/hardware/teensy/avr/cores/at90usb1286/
+VPATH += $(ARDUINO_INSTALL_DIR)/hardware/teensy/avr/libraries/Wire
+VPATH += $(ARDUINO_INSTALL_DIR)/hardware/teensy/avr/libraries/Wire/utility
 endif
 SRC = wiring.c \
 	wiring_analog.c wiring_digital.c \
@@ -240,13 +214,10 @@ CXXSRC = WMath.cpp WString.cpp Print.cpp Marlin_main.cpp	\
 	MarlinSerial.cpp Sd2Card.cpp SdBaseFile.cpp SdFatUtil.cpp	\
 	SdFile.cpp SdVolume.cpp motion_control.cpp planner.cpp		\
 	stepper.cpp temperature.cpp cardreader.cpp ConfigurationStore.cpp \
-	watchdog.cpp SPI.cpp Servo.cpp Tone.cpp ultralcd.cpp
-ifeq ($(LIQUID_TWI2), 0)
-CXXSRC += LiquidCrystal.cpp
-else
+	watchdog.cpp SPI.cpp Servo.cpp Tone.cpp ultralcd.cpp vector_3.cpp \
+	mcp4728.cpp Wire.cpp LiquidCrystal.cpp
 SRC += twi.c
-CXXSRC += Wire.cpp LiquidTWI2.cpp
-endif
+
 
 #Check for Arduino 1.0.0 or higher and use the correct sourcefiles for that version
 ifeq ($(shell [ $(ARDUINO_VERSION) -ge 100 ] && echo true), true)
@@ -281,7 +252,6 @@ OBJDUMP = $(AVR_TOOLS_PATH)avr-objdump
 AR  = $(AVR_TOOLS_PATH)avr-ar
 SIZE = $(AVR_TOOLS_PATH)avr-size
 NM = $(AVR_TOOLS_PATH)avr-nm
-AVRDUDE = avrdude
 REMOVE = rm -f
 MV = mv -f
 
@@ -297,7 +267,8 @@ endif
 
 # Add all the source directories as include directories too
 CINCS = ${addprefix -I ,${VPATH}}
-CXXINCS = ${addprefix -I ,${VPATH}}
+CINCS += -I$(ARDUINO_INSTALL_DIR)/hardware/tools/avr/avr/include/
+CINCS += -I$(ARDUINO_INSTALL_DIR)/hardware/teensy/avr/libraries/Wire/
 
 # Compiler flag to set the C Standard level.
 # c89   - "ANSI" C
@@ -316,23 +287,10 @@ endif
 #CEXTRA = -Wa,-adhlns=$(<:.c=.lst)
 CEXTRA = -fno-use-cxa-atexit
 
-CFLAGS := $(CDEBUG) $(CDEFS) $(CINCS) -O$(OPT) $(CWARN) $(CEXTRA) $(CTUNING)
+CFLAGS := $(CDEBUG) $(CDEFS) $(CINCS) -O$(OPT) $(CWARN) $(CEXTRA) $(CTUNING) -v
 CXXFLAGS :=         $(CDEFS) $(CINCS) -O$(OPT) -Wall    $(CEXTRA) $(CTUNING)
 #ASFLAGS = -Wa,-adhlns=$(<:.S=.lst),-gstabs
-LDFLAGS = -lm
-
-
-# Programming support using avrdude. Settings and variables.
-AVRDUDE_PORT = $(UPLOAD_PORT)
-AVRDUDE_WRITE_FLASH = -U flash:w:$(BUILD_DIR)/$(TARGET).hex:i
-ifeq ($(shell uname -s), Linux)
-AVRDUDE_CONF = $(ARDUINO_INSTALL_DIR)/hardware/tools/avrdude.conf
-else
-AVRDUDE_CONF = $(ARDUINO_INSTALL_DIR)/hardware/tools/avr/etc/avrdude.conf
-endif
-AVRDUDE_FLAGS = -D -C $(AVRDUDE_CONF) \
-	-p $(MCU) -P $(AVRDUDE_PORT) -c $(AVRDUDE_PROGRAMMER) \
-	-b $(UPLOAD_RATE)
+LDFLAGS = -nostartfiles $(ARDUINO_INSTALL_DIR)/hardware/tools/avr/avr/lib/avr51/crtusb1286.o -lm -L$(ARDUINO_INSTALL_DIR)/hardware/tools/avr/avr/lib/avr51/
 
 # Define all object files.
 OBJ = ${patsubst %.c, $(BUILD_DIR)/%.o, ${SRC}}
@@ -371,17 +329,6 @@ hex: $(BUILD_DIR)/$(TARGET).hex
 eep: $(BUILD_DIR)/$(TARGET).eep
 lss: $(BUILD_DIR)/$(TARGET).lss
 sym: $(BUILD_DIR)/$(TARGET).sym
-
-# Program the device.
-# Do not try to reset an arduino if it's not one
-upload: $(BUILD_DIR)/$(TARGET).hex
-ifeq (${AVRDUDE_PROGRAMMER}, arduino)
-	stty hup < $(UPLOAD_PORT); true
-endif
-	$(AVRDUDE) $(AVRDUDE_FLAGS) $(AVRDUDE_WRITE_FLASH)
-ifeq (${AVRDUDE_PROGRAMMER}, arduino)
-	stty -hup < $(UPLOAD_PORT); true
-endif
 
 	# Display size of file.
 HEXSIZE = $(SIZE) --target=$(FORMAT) $(BUILD_DIR)/$(TARGET).hex
